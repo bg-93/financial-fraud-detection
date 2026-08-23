@@ -1,4 +1,4 @@
-# Payment Fraud Detection — CBA Data Science Portfolio Project
+# Payment Fraud Detection — Data Science Portfolio Project
 
 ## Project goal
 
