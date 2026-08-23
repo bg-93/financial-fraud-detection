@@ -21,6 +21,10 @@ from fraud_detection import (
 LOGGER = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_ARTIFACT_DIR = PROJECT_ROOT / "artifacts"
+# Increment whenever artifact-loading compatibility rules change. Streamlit's
+# resource cache can otherwise retain an instance of the previous predictor
+# class across a source-code rerun on managed hosting.
+PREDICTOR_CACHE_VERSION = "python-major-compat-v2"
 
 
 def _artifact_directory() -> Path:
@@ -32,8 +36,9 @@ def _artifact_directory() -> Path:
 
 
 @st.cache_resource(show_spinner="Loading fraud model…")
-def _load_predictor(artifact_dir: str) -> FraudPredictor:
+def _load_predictor(artifact_dir: str, cache_version: str) -> FraudPredictor:
     """Load the model once per Streamlit process."""
+    del cache_version  # Its value is intentionally part of the Streamlit cache key.
     return FraudPredictor(artifact_dir=Path(artifact_dir))
 
 
@@ -161,7 +166,7 @@ def main() -> None:
     load_error: str | None = None
 
     try:
-        predictor = _load_predictor(str(artifact_dir))
+        predictor = _load_predictor(str(artifact_dir), PREDICTOR_CACHE_VERSION)
         # A cached predictor may have been created before training completed.
         # Retry lightweight artifact discovery on every rerun until it is ready.
         if not predictor.ready:
