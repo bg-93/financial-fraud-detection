@@ -208,11 +208,18 @@ def _validate_recorded_versions(metadata: Mapping[str, Any]) -> None:
     ]
 
     if recorded.get("python"):
-        trained_python = ".".join(str(recorded["python"]).split(".")[:2])
-        runtime_python = f"{sys.version_info.major}.{sys.version_info.minor}"
-        if trained_python != runtime_python:
+        # Pickle protocol compatibility is defined across Python 3 minor
+        # releases. The model-bearing libraries above are the compatibility
+        # boundary that must remain exact; only a Python major-version change
+        # is treated as incompatible here. This also permits managed hosts such
+        # as Streamlit Community Cloud to advance their Python 3 runtime.
+        trained_python = str(recorded["python"])
+        trained_python_major = trained_python.split(".", maxsplit=1)[0]
+        runtime_python_major = str(sys.version_info.major)
+        if trained_python_major != runtime_python_major:
             mismatches.append(
-                f"python trained={trained_python} runtime={runtime_python}"
+                "python major version "
+                f"trained={trained_python_major} runtime={runtime_python_major}"
             )
 
     if metadata.get("model") == "XGBoost" and recorded.get("xgboost"):

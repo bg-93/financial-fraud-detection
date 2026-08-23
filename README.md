@@ -171,8 +171,10 @@ The project deliberately avoids a large monitoring framework because the goal is
 
 ## Running the project
 
-Python 3.12 is required by the pinned runtime and matches the container. Create a
-virtual environment and install the project dependencies:
+Python 3.12 is recommended and matches the container. The artifact loader permits a
+newer Python 3 minor runtime, including Streamlit's Python 3.14 runtime, while still
+requiring exact versions of the model-bearing libraries. Create a virtual environment
+and install the project dependencies:
 
 ```bash
 python3.12 -m venv .venv
@@ -277,8 +279,8 @@ Its sidebar reports model readiness and can reload artifacts after retraining.
 For Streamlit Community Cloud, the repository must contain the two runtime files
 `artifacts/fraud_model.joblib` and `artifacts/model_metadata.json`. The `.gitignore`
 configuration intentionally permits those small files while continuing to exclude the
-training dataset and generated evaluation reports. Train and publish them with the same
-Python version declared in `.python-version` (currently Python 3.12), then commit both
+training dataset and generated evaluation reports. Train and publish them with the
+pinned dependencies; Python 3 minor-version differences are supported. Then commit both
 files before deploying or rebooting the app:
 
 ```bash

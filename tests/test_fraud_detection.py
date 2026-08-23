@@ -206,6 +206,33 @@ def test_predictor_rejects_recorded_runtime_version_mismatch(tmp_path):
     assert "library versions" in (predictor.load_error or "")
 
 
+def test_predictor_accepts_python_minor_version_difference(tmp_path):
+    artifact_dir = tmp_path / "artifacts"
+    _write_artifacts(artifact_dir)
+    metadata_path = artifact_dir / "model_metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["library_versions"] = {"python": "3.0.0"}
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    predictor = FraudPredictor(artifact_dir)
+
+    assert predictor.ready is True
+
+
+def test_predictor_rejects_python_major_version_difference(tmp_path):
+    artifact_dir = tmp_path / "artifacts"
+    _write_artifacts(artifact_dir)
+    metadata_path = artifact_dir / "model_metadata.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["library_versions"] = {"python": "2.7.18"}
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    predictor = FraudPredictor(artifact_dir)
+
+    assert predictor.ready is False
+    assert "python major version" in (predictor.load_error or "")
+
+
 def test_predictor_rejects_model_checksum_mismatch(tmp_path):
     artifact_dir = tmp_path / "artifacts"
     _write_artifacts(artifact_dir)
