@@ -138,7 +138,7 @@ This makes the results easier to discuss from a business perspective.
 
 ## Threshold selection
 
-The probability threshold is not fixed at 0.5.
+The decision threshold on the model score is not fixed at 0.5.
 
 After the best model is chosen, the notebook finds the score corresponding to approximately the highest-risk 1% of validation transactions. This becomes the review threshold.
 
@@ -171,35 +171,47 @@ The project deliberately avoids a large monitoring framework because the goal is
 
 ## Running the project
 
-Create a virtual environment if desired, then install the requirements:
+Python 3.12 is required by the pinned runtime and matches the container. Create a
+virtual environment and install the project dependencies:
 
 ```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Start Jupyter:
+On macOS, XGBoost also needs the OpenMP runtime (`brew install libomp`). If that
+runtime is unavailable, `python train_model.py --skip-xgboost` still trains and
+compares the sklearn candidates; serving an XGBoost artifact still requires OpenMP.
+
+You can train from the notebook as before:
 
 ```bash
 jupyter notebook
 ```
 
-Open:
+Open `fraud_detection_notebook.ipynb`, choose the dataset and run every cell.
 
-```text
-fraud_detection_notebook.ipynb
+For repeatable training outside Jupyter, use the deployment training command:
+
+```bash
+python train_model.py --data data/PaySim.csv
 ```
 
-To run on the full PaySim dataset, create the `data` folder and place the CSV at:
+The full PaySim CSV is required by default; the command fails instead of silently
+training a demo model when it is missing. For a local integration smoke test only,
+you can explicitly use the bundled synthetic sample:
 
-```text
-data/PaySim.csv
+```bash
+python train_model.py --use-demo
 ```
 
-Then restart the notebook and run all cells from the beginning.
+Run `python train_model.py --help` for alternate artifact paths, review capacity,
+random seed and an option to skip XGBoost.
 
-## Files produced by the notebook
+## Model artifacts
 
-The notebook creates an `artifacts/` directory containing:
+The notebook and `train_model.py` both create an `artifacts/` directory containing:
 
 ```text
 fraud_model.joblib
@@ -210,67 +222,140 @@ model_metadata.json
 
 `fraud_model.joblib` contains both the preprocessing steps and the fitted classifier.
 
-`model_metadata.json` records the chosen model, review threshold, features and final test metrics.
+`model_metadata.json` records the chosen model, review threshold, features and final
+test metrics. The training command also records its data source, split boundaries,
+training time and library versions. Treat joblib files as trusted executable artifacts:
+only load a model that your own training workflow produced. The model-bearing runtime
+dependencies are pinned in both local and container requirements because joblib model
+snapshots are not stable across sklearn or XGBoost versions.
+The command-line trainer stages a complete artifact generation, publishes metadata last,
+and records a SHA-256 model checksum so an interrupted retrain cannot silently combine a
+new model with an old decision threshold.
 
-## Deployment approach
+## Deployment
 
-The modelling notebook and the deployed application should be kept separate.
-
-A simple deployment would have three parts:
+The modelling workflow and deployed interfaces remain separate. Both Streamlit and
+FastAPI call `fraud_detection.py`, which loads the same pipeline and metadata, validates
+the feature contract and applies the same review threshold:
 
 ```text
 new transaction
       |
       v
-feature calculation
+validated features
       |
       v
 saved fraud model
       |
       v
-fraud probability
+fraud risk score
       |
       +--> allow
       +--> manual review
 ```
 
-### Option 1: Streamlit
+The deployment is stateless. It cannot reconstruct account history from one incoming
+transaction, so the caller must supply aggregates calculated only from earlier activity:
+sender count and mean, recipient count, sender-recipient pair count, and sender recency.
+In a real system those values would normally come from an online feature store or a
+transaction-history service.
 
-For a portfolio demonstration, Streamlit is the simplest option. A small page can allow a reviewer to enter transaction details and display the predicted fraud probability and whether the transaction crosses the review threshold.
+### Streamlit dashboard
 
-This is the best first deployment because the focus remains on the data science rather than frontend development.
+After generating the artifacts, start the reviewer dashboard:
 
-### Option 2: FastAPI
+```bash
+streamlit run app.py
+```
 
-A more software-focused version can load `fraud_model.joblib` in a FastAPI service and expose a `/predict` endpoint.
+The dashboard accepts a transaction and its pre-transaction history, then displays the
+fraud risk score, configured threshold and `Allow` or `Manual review` routing decision.
+Because the candidates use class weighting and are not calibrated, the displayed score
+is useful for ranking against the threshold but is not a real-world fraud likelihood.
+Its sidebar reports model readiness and can reload artifacts after retraining.
 
-A request could look like:
+### FastAPI endpoint
+
+Start the API locally:
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+The service provides:
+
+- `GET /health` for model readiness;
+- `POST /predict` for one transaction;
+- `GET /docs` for interactive OpenAPI documentation.
+
+Example request:
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "type": "TRANSFER",
+    "amount": 8700,
+    "hour": 2,
+    "sender_tx_count_before": 12,
+    "sender_mean_amount_before": 190,
+    "recipient_tx_count_before": 2,
+    "pair_tx_count_before": 0,
+    "is_new_recipient": 1,
+    "hours_since_sender_tx": 3
+  }'
+```
+
+Example response:
 
 ```json
 {
-  "type": "TRANSFER",
-  "amount": 8700,
-  "sender_tx_count_before": 12,
-  "sender_mean_amount_before": 190,
-  "amount_vs_sender_mean": 45.8,
-  "recipient_tx_count_before": 2,
-  "pair_tx_count_before": 0,
-  "is_new_recipient": 1,
-  "hours_since_sender_tx": 3,
-  "hour": 2
+  "fraud_score": 0.86,
+  "send_for_review": true,
+  "review_threshold": 0.20,
+  "model": "XGBoost"
 }
 ```
 
-The response could contain:
+Malformed requests return `422`. If artifacts are missing or incompatible, the process
+stays available for diagnostics while `/health` and `/predict` return `503`. The health
+response also surfaces a warning when the loaded artifact was trained with `--use-demo`.
+This portfolio service does not implement authentication or TLS; place it behind an
+authenticated HTTPS gateway before exposing it outside a trusted environment.
 
-```json
-{
-  "fraud_probability": 0.86,
-  "send_for_review": true
-}
+### Docker image
+
+Generate model artifacts before building if you want them embedded in the image, then run:
+
+```bash
+docker build -t fraud-detection-api .
+docker run --rm -p 8000:8000 fraud-detection-api
 ```
 
-The FastAPI service could then be containerised with Docker and hosted on a small cloud service. That deployment work is a useful extension, but it does not need to be mixed into the modelling notebook.
+For a cleaner production separation, build the image once and mount a trusted model at
+runtime instead:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/artifacts:/app/artifacts:ro" \
+  fraud-detection-api
+```
+
+The image runs as a non-root user and includes a `/health` Docker health check. Set
+`FRAUD_ARTIFACT_DIR` to use a different artifact directory outside Docker. Hosting
+platforms can override the default port with `PORT`. A container
+started without valid artifacts deliberately becomes unhealthy and refuses predictions.
+After supplying or replacing mounted artifacts, restart the API container so it loads
+the new immutable model snapshot.
+
+### Tests
+
+Install the development dependencies and run the inference and API tests:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
 
 ## What to discuss in an interview
 
@@ -288,7 +373,7 @@ You should be able to explain:
 - why model performance should be checked over time;
 - how the saved model could be exposed through Streamlit or FastAPI.
 
-## Possible extensions
+## Extension status
 
 Only add these after the main notebook works and you can explain every existing section clearly.
 
@@ -296,8 +381,8 @@ Only add these after the main notebook works and you can explain every existing 
 2. Add simple network features such as the number of different recipients previously paid by a sender.
 3. Add SHAP explanations for individual XGBoost predictions.
 4. Calibrate predicted probabilities.
-5. Build a Streamlit dashboard.
-6. Create a FastAPI prediction endpoint and Docker image.
+5. **Implemented:** Streamlit dashboard.
+6. **Implemented:** FastAPI prediction endpoint and Docker image.
 7. Compare performance under several review capacities such as 0.5%, 1% and 2%.
 
 These are extensions rather than requirements. A smaller project that you understand completely is stronger in an interview than a more complicated project that is difficult to defend.
@@ -306,16 +391,28 @@ These are extensions rather than requirements. A smaller project that you unders
 
 ```text
 fraud-detection/
+├── api.py                       # FastAPI service
+├── app.py                       # Streamlit dashboard
+├── fraud_detection.py           # shared artifact loading and inference
+├── train_model.py               # reproducible command-line training
 ├── fraud_detection_notebook.ipynb
+├── Dockerfile
+├── .dockerignore
+├── .gitignore
+├── .python-version
 ├── README.md
 ├── requirements.txt
+├── requirements-api.txt         # smaller container dependency set
+├── requirements-dev.txt
 ├── demo_paysim.csv
+├── tests/
 ├── data/
 │   └── PaySim.csv              # not committed to GitHub
-└── artifacts/                  # generated after running notebook
+└── artifacts/                   # generated locally or mounted at runtime
 ```
 
-Add `data/PaySim.csv` and the generated model file to `.gitignore` if they are too large for GitHub.
+The included `.gitignore` keeps the full training data and generated model artifacts out
+of Git. Supply trusted artifacts separately in your deployment workflow.
 
 ## Project summary
 
@@ -332,7 +429,9 @@ transaction data
     -> final test evaluation
     -> feature importance
     -> performance monitoring
-    -> saved model for deployment
+    -> saved model
+    -> shared inference validation
+    -> Streamlit dashboard or containerised FastAPI API
 ```
 
 That is enough technical depth for a strong undergraduate data science portfolio project without making the implementation unnecessarily complicated.

@@ -1,0 +1,4 @@
+-r requirements.txt
+
+httpx2>=2,<3
+pytest>=8.3,<9

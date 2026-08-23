@@ -1,0 +1,8 @@
+# Deny by default so future datasets, notebooks and local secrets cannot leak
+# into the production image. Only the API runtime and trusted artifacts belong.
+**
+!api.py
+!fraud_detection.py
+!requirements-api.txt
+!artifacts/
+!artifacts/**
