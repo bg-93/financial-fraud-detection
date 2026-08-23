@@ -274,6 +274,23 @@ Because the candidates use class weighting and are not calibrated, the displayed
 is useful for ranking against the threshold but is not a real-world fraud likelihood.
 Its sidebar reports model readiness and can reload artifacts after retraining.
 
+For Streamlit Community Cloud, the repository must contain the two runtime files
+`artifacts/fraud_model.joblib` and `artifacts/model_metadata.json`. The `.gitignore`
+configuration intentionally permits those small files while continuing to exclude the
+training dataset and generated evaluation reports. Train and publish them with the same
+Python version declared in `.python-version` (currently Python 3.12), then commit both
+files before deploying or rebooting the app:
+
+```bash
+python3.12 train_model.py --data data/PaySim.csv --artifacts-dir artifacts
+git add .gitignore artifacts/fraud_model.joblib artifacts/model_metadata.json
+git commit -m "Bundle Streamlit model artifacts"
+git push
+```
+
+When replacing a model, always publish the model and metadata together; the loader
+verifies their checksum and refuses a mismatched pair.
+
 ### FastAPI endpoint
 
 Start the API locally:

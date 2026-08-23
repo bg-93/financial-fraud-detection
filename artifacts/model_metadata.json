@@ -1,0 +1,75 @@
+{
+  "artifact_schema_version": 1,
+  "model": "Logistic Regression",
+  "review_threshold": 0.9200991186899471,
+  "review_capacity": 0.01,
+  "features": [
+    "amount",
+    "log_amount",
+    "hour",
+    "sender_tx_count_before",
+    "sender_mean_amount_before",
+    "amount_vs_sender_mean",
+    "recipient_tx_count_before",
+    "pair_tx_count_before",
+    "is_new_recipient",
+    "hours_since_sender_tx",
+    "type"
+  ],
+  "test_metrics": {
+    "model": "Logistic Regression",
+    "pr_auc": 0.31064602980579215,
+    "precision_at_threshold": 0.5,
+    "recall_at_threshold": 0.25,
+    "f1_at_threshold": 0.3333333333333333,
+    "flag_rate": 0.00646551724137931,
+    "precision_at_review_capacity": 0.4,
+    "recall_at_review_capacity": 0.3333333333333333,
+    "fraud_value_capture_at_review_capacity": 0.69142645490993
+  },
+  "data_source": "PaySim CSV",
+  "data_path": "/Users/aditya/Documents/university_resource_files/fraud_detection_notebook/financial-fraud-detection/data/PaySim.csv",
+  "demo_data": false,
+  "deployment_warning": null,
+  "trained_at_utc": "2026-08-23T09:46:54Z",
+  "random_state": 42,
+  "split_boundaries": {
+    "train_end_exclusive": 50,
+    "validation_end_exclusive": 61
+  },
+  "splits": [
+    {
+      "split": "train",
+      "transactions": 4142,
+      "frauds": 41,
+      "fraud_rate": 0.009898599710284886,
+      "first_step": 1,
+      "last_step": 49
+    },
+    {
+      "split": "validation",
+      "transactions": 930,
+      "frauds": 12,
+      "fraud_rate": 0.012903225806451613,
+      "first_step": 50,
+      "last_step": 60
+    },
+    {
+      "split": "test",
+      "transactions": 928,
+      "frauds": 12,
+      "fraud_rate": 0.01293103448275862,
+      "first_step": 61,
+      "last_step": 71
+    }
+  ],
+  "library_versions": {
+    "python": "3.12.13",
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "pandas": "2.3.3",
+    "scikit_learn": "1.9.0",
+    "xgboost": null
+  },
+  "model_sha256": "bcf99ac84e74baf1667eb6fea7f54cdc2361392509331621e475bfc8dad7f868"
+}

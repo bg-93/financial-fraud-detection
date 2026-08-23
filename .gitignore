@@ -10,6 +10,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# Full training data and generated artifacts are local/deployment assets.
+# Full training data stays local. Publish only the two small, versioned runtime
+# artifacts required by Streamlit; training reports remain local outputs.
 data/
-artifacts/
+artifacts/*
+!artifacts/fraud_model.joblib
+!artifacts/model_metadata.json
