@@ -1,7 +1,7 @@
 {
   "artifact_schema_version": 1,
-  "model": "Logistic Regression",
-  "review_threshold": 0.9200991186899471,
+  "model": "Random Forest",
+  "review_threshold": 0.9222039007026189,
   "review_capacity": 0.01,
   "features": [
     "amount",
@@ -17,59 +17,59 @@
     "type"
   ],
   "test_metrics": {
-    "model": "Logistic Regression",
-    "pr_auc": 0.31064602980579215,
-    "precision_at_threshold": 0.5,
-    "recall_at_threshold": 0.25,
-    "f1_at_threshold": 0.3333333333333333,
-    "flag_rate": 0.00646551724137931,
-    "precision_at_review_capacity": 0.4,
-    "recall_at_review_capacity": 0.3333333333333333,
-    "fraud_value_capture_at_review_capacity": 0.69142645490993
+    "model": "Random Forest",
+    "pr_auc": 0.6103269574616622,
+    "precision_at_threshold": 0.5258181818181819,
+    "recall_at_threshold": 0.5774760383386581,
+    "f1_at_threshold": 0.5504377617053673,
+    "flag_rate": 0.015368966981870208,
+    "precision_at_review_capacity": 0.6391061452513966,
+    "recall_at_review_capacity": 0.45686900958466453,
+    "fraud_value_capture_at_review_capacity": 0.8606869206853223
   },
   "data_source": "PaySim CSV",
   "data_path": "/Users/aditya/Documents/university_resource_files/fraud_detection_notebook/financial-fraud-detection/data/PaySim.csv",
   "demo_data": false,
   "deployment_warning": null,
-  "trained_at_utc": "2026-08-23T09:46:54Z",
+  "trained_at_utc": "2026-08-23T17:16:00Z",
   "random_state": 42,
   "split_boundaries": {
-    "train_end_exclusive": 50,
-    "validation_end_exclusive": 61
+    "train_end_exclusive": 521,
+    "validation_end_exclusive": 632
   },
   "splits": [
     {
       "split": "train",
-      "transactions": 4142,
-      "frauds": 41,
-      "fraud_rate": 0.009898599710284886,
+      "transactions": 6082007,
+      "frauds": 5781,
+      "fraud_rate": 0.0009505086067806235,
       "first_step": 1,
-      "last_step": 49
+      "last_step": 520
     },
     {
       "split": "validation",
-      "transactions": 930,
-      "frauds": 12,
-      "fraud_rate": 0.012903225806451613,
-      "first_step": 50,
-      "last_step": 60
+      "transactions": 191147,
+      "frauds": 1180,
+      "fraud_rate": 0.006173259323975788,
+      "first_step": 521,
+      "last_step": 631
     },
     {
       "split": "test",
-      "transactions": 928,
-      "frauds": 12,
-      "fraud_rate": 0.01293103448275862,
-      "first_step": 61,
-      "last_step": 71
+      "transactions": 89466,
+      "frauds": 1252,
+      "fraud_rate": 0.01399414302640109,
+      "first_step": 632,
+      "last_step": 743
     }
   ],
   "library_versions": {
-    "python": "3.12.13",
+    "python": "3.14.6",
     "joblib": "1.5.3",
     "numpy": "2.5.2",
     "pandas": "2.3.3",
     "scikit_learn": "1.9.0",
     "xgboost": null
   },
-  "model_sha256": "bcf99ac84e74baf1667eb6fea7f54cdc2361392509331621e475bfc8dad7f868"
+  "model_sha256": "6a15a1dec19a797fba28dcbcf289675bba8d76452421dd8aaaded130f508bed9"
 }
